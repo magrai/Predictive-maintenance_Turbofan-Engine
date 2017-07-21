@@ -1,0 +1,76 @@
+---
+title: "R Notebook"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+# Description
+
+Engine degradation simulation was carried out using C-MAPSS. Four different were sets simulated under different combinations of operational conditions and fault modes. Records several sensor channels to characterize fault evolution. The data set was provided by the Prognostics CoE at NASA Ames.
+
+Reference: A. Saxena, K. Goebel, D. Simon, and N. Eklund, “Damage Propagation Modeling for Aircraft Engine Run-to-Failure Simulation”, in the Proceedings of the Ist International Conference on Prognostics and Health Management (PHM08), Denver CO, Oct 2008.
+
+# Load data
+
+We explored importing, visualizing and preprocessing the data in the unsupervised script, so here we will simply load in the data.
+
+```{r}
+
+```
+
+# Define classification thresholds
+
+To solve this as a classification problem, we need to define what the classes are and where the boundaries are between them. This typically is something you cannot do purely from the equipment sensor data. Here we drew arbitray boundaries to create four difference classes. We will attempt to classificy each point as beingt urgently in need of maintenance, or having a short, medium, or long time until maintenance is needed.
+
+```{r}
+
+```
+
+# Visualize all sensor data in categories
+
+Here we look at a subset of the available sensors. The engines have been aligned so that they all fall at time zero and negative values represent flights prior to failure. We can see how the sensors change as they appraoch failure and where we have placed the different classes.
+
+```{r}
+
+```
+
+# Rapid prototyping for Machine Learning by leveraging App generated codes
+
+One of the biggest challanges in machine learning is that there is no good way to know ahead of time what machine learning algortihms will work best until you try them out and see. The classification Learner App from the Statistics and Machine Learning Toolbox makes greatly simplifies ths workflow. We can explore many different techniques in the app, and in this case find that a K-nearest neighbors algorithms seems to work best.
+
+```{r}
+
+```
+
+# Create training and test sets
+
+The app will automatically create training and testing data sets when working within it. We can also create them ourselves when running outside the app.
+
+(SEE THE CODE FROM GENERATED CODE)
+
+# Easy to develop, evaluate models by leveraging Apps, e.g. k-nearest neighbor
+
+```{r}
+
+```
+
+# Cost matrix
+
+We can use a cost matrix to prioritize certain errors. for example the 'urgent' cases are the most important to capute, so we can penilze errors when the 'urgent' class is misclassified more than other types of errors. However, it is also wasteful to do maintenance well before it is needed, so we may add a smalle penalty to when we predict 'urgent' when it is actually 'medium' or long.
+
+```{r}
+
+```
+
+# New model with K=5 and custom cost matrix
+
+We can use cost matrix to prioritize certain errors. Now we are optimizing for the overall impact of our mistakes based on our cost matrix rather than just minimizing tehurbofan Engine Degradation Simulation Data Se traw numver of mistakes. We can see that this greatly reduces the number of urgent cases that are not correctly captured, but also increases the number of short cases that are incorrectly classified as urgent. This may actually cause us to make a greater number of total mistakes, but if it concentrates those mistakes in areas where they are less costly to make then that is preferrable.
+
+```{r}
+
+```
+
+
+## FINAL RESULTS HEAR FIGURE CAPTIONS
+
