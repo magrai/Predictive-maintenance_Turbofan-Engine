@@ -1,0 +1,7 @@
+"0","## Smooth sensor data"
+"0","smooth_data <- sensor_data"
+"0","smooth_data[, 3:ncol(smooth_data)] <- "
+"0","  filter(smooth_data[, 3:ncol(smooth_data)],"
+"0","         rep(1/4, 4),"
+"0","         sides = 1)"
+"0","head(smooth_data)"

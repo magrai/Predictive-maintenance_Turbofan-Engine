@@ -1,0 +1,12 @@
+"0","## Using correction factor 1.3 when computing standard error"
+"0","plot(engine1$Time, engine1$LPCOutletTemp,"
+"0","     ylim = c(641.5, 643.5),"
+"0","     main = 'Control chart',"
+"0","     xlab = 'Time',"
+"0","     ylab = 'LPTOutletTemp',"
+"0","     pch = 16,"
+"0","     col = ""blue"""
+"0",")"
+"2","Error in plot(engine1$Time, engine1$LPCOutletTemp, ylim = c(641.5, 643.5),  : 
+  object 'engine1' not found
+"
