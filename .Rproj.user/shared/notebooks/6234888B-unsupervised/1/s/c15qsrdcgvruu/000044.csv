@@ -1,0 +1,1 @@
+"0","points(pca_summary$importance[2, 1:10] * 100, pch = 16, col = 'red')"
