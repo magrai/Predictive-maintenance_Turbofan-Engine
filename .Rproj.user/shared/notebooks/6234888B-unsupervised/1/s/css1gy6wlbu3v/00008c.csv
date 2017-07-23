@@ -1,0 +1,2 @@
+"0","points(pca$x[idx_last, 1], pca$x[idx_last, 2], "
+"0","       pch = 16, cex = 0.5, col = ""red"")"

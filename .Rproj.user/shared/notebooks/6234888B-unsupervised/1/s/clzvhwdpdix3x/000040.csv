@@ -1,0 +1,2 @@
+"0","points(pca$x[r[length(r)], 1], pca$x[r[length(r)], 2],"
+"0","       pch = 16, cex = 1, col = ""red"")"

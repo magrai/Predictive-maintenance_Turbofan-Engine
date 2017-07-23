@@ -316,11 +316,12 @@ points(pca_summary$importance[2, 1:10] * 100, pch = 16, col = 'red')
 ## ... which explain nearly 90% of the overall variance
 plot(pca$x[,1], pca$x[,2],
      pch = 16,
-     cex = 0.2,
+     cex = 0.3,
      col = "deepskyblue3",
+     xlim = c(-10, 15),
+     ylim = c(-3, 7),
      xlab = "First principal component",
      ylab = "Second principal component")
-     #xlim = c(-10, 15))
 
 ## Save the needed variables to standardize new data 
 ## ...and transform it into the same PCA projection
@@ -337,7 +338,35 @@ As a first try we can simply look at the first and last point recorded for each 
 In this case we can see that the first and last points form two groups, with the first points centered closer to the origin and the last points centered further away. However there is significant overlap between them, which would not be suprising if many engines are still behaving normally at the time maintenance was performed.
 
 ```{r Warning system}
+## Find first and last point for each engine
+idx_first <- vapply(unique(sensor_data_smooth$Unit), function(x) min(which(sensor_data_smooth$Unit == x)), numeric(1))
 
+idx_last <- vapply(unique(sensor_data_smooth$Unit), function(x) max(which(sensor_data_smooth$Unit == x)), numeric(1))  
+
+## Compute centroids
+idx_first_cent <- colMeans(pca$x[idx_first, c(1, 2)])
+idx_last_cent <- colMeans(pca$x[idx_last, c(1, 2)])
+
+## Plot data
+plot(pca$x[idx_first, 1], pca$x[idx_first, 2],
+     pch = 16, cex = 0.5, 
+     col = "deepskyblue3",
+     xlim = c(-10, 15),
+     ylim = c(-3, 7),
+     main = 'First (Sample 1) and last (Sample 125) for each engine',
+     xlab = "First principal component",
+     ylab = "Second principal component")
+points(pca$x[idx_last, 1], pca$x[idx_last, 2], 
+       pch = 16, cex = 0.5, col = "red")
+points(idx_first_cent[1], idx_first_cent[2], 
+       pch = 16, cex = 1, col = "green3")
+points(idx_last_cent[1], idx_last_cent[2], 
+       pch = 16, cex = 1, col = "green3")
+legend("topleft", 
+       c("First points", "Last points", 
+         "First points centered", "Last points centered"),
+       pch = 16, cex = 1,
+       col = c("deepskyblue3", "red", "green3", "green3"))
 ```
 
 # Highlight problematic engines
@@ -347,6 +376,23 @@ The prio plot showed much overlap betwen the first and last data points. However
 We can see that many of them do indeed fall outside the main cluster of points, indicating that if an engine's sensor readings move outside the main cluster it may make for a dood cirteria for when an engine needs servicing.
 
 ```{r Highlight problematic engines}
+idx_problematic <- sensor_data_smooth$Unit %in% c(39, 57, 70, 91)
+## Only last 20 cycles
+idx_problematic <- 
+  idx_problematic & 
+  sensor_data_smooth$Time > (max(sensor_data_smooth$Time) - 20)
+
+plot(pca$x[,1], pca$x[,2],
+     pch = 16,
+     cex = 0.5,
+     col = "deepskyblue3",
+     xlim = c(-10, 15),
+     ylim = c(-3, 7),
+     main = "Last 20 flights of problematic engines shown in red",
+     xlab = "First principal component",
+     ylab = "Second principal component")
+points(pca$x[idx_problematic, 1], pca$x[idx_problematic, 2],
+       pch = 16, cex = 0.5, col = "red")
 
 ```
 
@@ -355,7 +401,24 @@ We can see that many of them do indeed fall outside the main cluster of points, 
 Fur further investigation we can see how different engines move through the cluster of data poings as they approach their maintenance date.
 
 ```{r Path through PCA}
-
+# Engines identified by maintenance: 39, 57, 70, 91
+engine_num = 39
+r <- which(sensor_data_smooth$Unit == engine_num)
+plot(pca$x[,1], pca$x[,2],
+     pch = 16,
+     cex = 0.5,
+     col = "deepskyblue3",
+     xlim = c(-10, 15),
+     ylim = c(-3, 7),
+     main = paste("Engine", engine_num),
+     xlab = "First principal component",
+     ylab = "Second principal component")
+lines(pca$x[r, 1], pca$x[r, 2],
+      lwd = 2, col = "green2")
+points(pca$x[r[1], 1], pca$x[r[1], 2],
+       pch = 16, cex = 1, col = "yellow")
+points(pca$x[r[length(r)], 1], pca$x[r[length(r)], 2],
+       pch = 16, cex = 1, col = "red")
 ```
 
 # Inertial criteria for warning and alarm signals

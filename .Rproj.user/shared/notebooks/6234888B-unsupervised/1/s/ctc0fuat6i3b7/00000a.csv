@@ -1,0 +1,2 @@
+"0","points(pca$x[idx_problematic, 1], pca$x[idx_problematic, 2],"
+"0","       pch = 16, cex = 0.5, col = ""red"")"
