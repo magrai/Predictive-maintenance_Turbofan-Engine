@@ -1,2 +1,0 @@
-"0","lines(pca$x[r, 1], pca$x[r, 2],"
-"0","      lwd = 2, col = ""green2"")"

@@ -7,9 +7,15 @@ output:
 
 # General information
 
-This document contains the transcription of MathWorks MATLAB Webinar "Predictive Maintenance with MATLAB: A Prognostic Case Study" by Adam Filion, which is availabe on https://de.mathworks.com/videos/predictive-maintenance-with-matlab-a-prognostics-case-study-118661.html and https://www.youtube.com/watch?v=9QUM5jtB0t4.
+This document contains the transcription of MathWorks MATLAB Webinar "Predictive Maintenance with MATLAB: A Prognostic Case Study" by Adam Filion, which is availabe on https://de.mathworks.com/videos/predictive-maintenance-with-matlab-a-prognostics-case-study-118661.html and https://www.youtube.com/watch?v=9QUM5jtB0t4. 
 
-Additional demo files can be found on https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812208&tab=function.
+The case study hass been written R.
+
+Additional demo files can be found on 
+* https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812208&tab=function.
+* https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812210&tab=example
+* https://gallery.cortanaintelligence.com/Experiment/Predictive-Maintenance-Step-1-of-3-data-preparation-and-feature-engineering-2
+* https://github.com/hankroark/Turbofan-Engine-Degradation/blob/master/models/Turbofan-Degradation-DataSet-FD001.ipynb
 
 # Description
 
@@ -293,7 +299,8 @@ Principal component analysis (PCA) is one of the most popular methods of reducin
 ## Apply principal components analysis to the standardized data
 ## MATLAB's pca uses singular value decomposition (SVD)
 ## ... so R prcomp is appropriate (vs. princomp, which uses spectral decomposition)
-pca <- prcomp(xtrain_standard)
+#pca <- prcomp(xtrain_standard)
+pca <- prcomp(xtrain, center = T, scale = T)
 pca_summary <- summary(pca)
 
 ## prcomp(xtrain_standard)[1] == princomp(xtrain_standard, cor = T)[1]
@@ -339,9 +346,16 @@ In this case we can see that the first and last points form two groups, with the
 
 ```{r Warning system}
 ## Find first and last point for each engine
-idx_first <- vapply(unique(sensor_data_smooth$Unit), function(x) min(which(sensor_data_smooth$Unit == x)), numeric(1))
-
-idx_last <- vapply(unique(sensor_data_smooth$Unit), function(x) max(which(sensor_data_smooth$Unit == x)), numeric(1))  
+idx_first <- 
+  vapply(unique(sensor_data_smooth$Unit), 
+         function(x) 
+           min(which(sensor_data_smooth$Unit == x)), 
+         numeric(1))
+idx_last <- 
+  vapply(unique(sensor_data_smooth$Unit), 
+         function(x) 
+           max(which(sensor_data_smooth$Unit == x)), 
+         numeric(1))  
 
 ## Compute centroids
 idx_first_cent <- colMeans(pca$x[idx_first, c(1, 2)])
@@ -428,10 +442,50 @@ Based on the results, we can make an initial guess for the criteria to use for w
 The criteria for producing the 'warn' and 'alarm' signals should be treated as initial guesses that will continue to evolve over time as we perform more rounds of maintenance while gathering more sensor data and maintenance feedback.
 
 ```{r Inertial criteria}
+idx_alarm <- 
+  pca$x[, 1] > 10 | 
+  pca$x[, 1] < -7 | 
+  pca$x[, 2] > 5 | 
+  pca$x[, 2] < -4
 
+idx_warn <-
+  pca$x[, 1] > 5 | 
+  pca$x[, 1] < -6.5 | 
+  pca$x[, 2] > 2 | 
+  pca$x[, 2] < -3
+
+rectx_alarm <- c(-10, -10, 15, 15, 10, 10, -7, -7, -10)
+recty_alarm <- c( -4,   8,  8, -4, -4,  5,  5, -4,  -4)
+
+rectx_warn <- c(-7, -7, 10, 10,  5, 5, -6.5, -6.5,  4.99,  4.99, -6.5)
+recty_warn <- c(-4,  5,  5, -4, -4, 2,  2,   -3,   -3,    -4,    -4)
+
+rectx_normal <- c(-6.5, -6.5, 5,  5, -6.5)
+recty_normal <- c(-3,    2,   2, -3, -3)
+
+plot(NULL, 
+     xlim = c(-10, 15),
+     ylim = c(-4, 8),
+     xaxs = "i",
+     yaxs = "i",
+     main = "Green = Normal, Orange = Warning, Red = Alarm",
+     xlab = "First principal component",
+     ylab = "Second principal component")
+polygon(rectx_alarm, recty_alarm, col = rgb(237, 28, 36, 0.3*255, maxColorValue = 255))
+polygon(rectx_warn, recty_warn, col = rgb(255, 255, 0, 0.3*255, maxColorValue = 255))
+polygon(rectx_normal, recty_normal, col = rgb(0, 255, 64, 0.3*255, maxColorValue = 255))
+points(pca$x[,1], pca$x[,2],
+     pch = 16,
+     cex = 0.3,
+     col = "deepskyblue3")
+
+cat("\n Percent of points captured by \"normal\" conditions:",
+    sum(!idx_warn)/nrow(pca$x) * 100)
+cat("\n Percent of points captured by \"normal\" + \"warn\" conditions:",
+    sum(!idx_alarm)/nrow(pca$x) * 100)
 ```
 
-# How can evaluate the criteria?
+# How can we evaluate the criteria?
 
 Since we have never had an equiment failure, we have no way of knowing what failure looks like in the data. Even though our maintenance staff identified several engines that appeared to be degrading, and those engines appeared to show a distinct trend closer to the maintenance date, we sill don't know how close to failure they actually were. So then how can we use this information to improve our decision making? This is one of the most difficualt aspects of unsupervised learning.
 
@@ -443,11 +497,101 @@ We can continue to roll back the pace of our regularly scheduled maintenance dat
 
 We actually do have data from all 100 engines running and failure conditions area reached, we were just ignoring what happened after sample 125 so we could explore an unsupervised workflow in a scheduled maintenance situation. Here we load in all the data from all 100 engines to dtermine how this would turned out if we run all our engines to failure while tracking their warning and alarm signals.
 
-We can see how has the engines appraoch failure the ratio of 'normal', 'warning' and 'alarm' classifications change over time. All engines are 'normal' unteil aounrd 125 flights prior to failure, at which point some begin to enter the 'warning' region. Around 75 flights prior to failure, some begin to enter the 'alarm' region- All engines have left 'normal' conditions by 26 flights prior to failure. By 9 flights prio to failure, all 100 engines are triggering alarms, so no engine enters failure without triggering an alarm for a least 9 consecutive flights.
+We can see how has the engines appraoch failure the ratio of 'normal', 'warning' and 'alarm' classifications change over time. All engines are 'normal' until around 125 flights prior to failure, at which point some begin to enter the 'warning' region. Around 75 flights prior to failure, some begin to enter the 'alarm' region- All engines have left 'normal' conditions by 26 flights prior to failure. By 9 flights prio to failure, all 100 engines are triggering alarms, so no engine enters failure without triggering an alarm for a least 9 consecutive flights.
 
 
 ```{r Evaluate all engines}
+## Load in full dataset
+## (available in sensor_data)
 
+## Extract and standardize full sensor data
+x_full <- sensor_data[, variable_names]
+
+x_full_smooth <- c()
+## SMOOTH
+for (u in unique(x_full$Unit)) {
+  ## Prepare data
+  data_temp <- x_full[x_full$Unit == u, variable_names]
+  data_temp <- data_temp[1:125,]
+
+  data_temp_smooth <- data_temp
+  ## Implementation of moving average with filling truncated areas
+  ## First value remains the same
+  ## Second to kth value is truncated, and averaged over values < k
+  for (i in 2:k) {
+    data_temp_smooth[i, 3:ncol(data_temp_smooth)] <- 
+      apply(data_temp[1:i, 3:ncol(data_temp)], 2, mean)
+  }
+
+  for(i in (k+1):nrow(data_temp_smooth)) {
+    data_temp_smooth[i, 3:ncol(data_temp_smooth)] <- 
+      apply(data_temp[(i-k):i, 3:ncol(data_temp)], 2, mean)
+  }
+  
+  ## remove truncated areas
+  #data_temp_smooth <- data_temp_smooth[(k+2):nrow(data_temp_smooth), ]
+  x_full_smooth <- rbind(x_full_smooth, data_temp_smooth)
+}
+
+
+x_full <- x_full_smooth
+
+#x_full[, 3:ncol(x_full)] <- scale(x_full[, 3:ncol(x_full)], center = T, scale = T)
+x_full <- as.data.frame(x_full)
+
+## Project full sensor data onto prncipal coordinates
+#score <- x_full[, 3:ncol(x_full)] %*% pca$rotation
+score <- predict(pca, x_full[, 3:ncol(x_full)])
+
+## Classify each point into "normal", "warning", and "alarm"
+idx_alarm <- 
+  score[, 1] > 10 | 
+  score[, 1] < -7 | 
+  score[, 2] > 5 | 
+  score[, 2] < -4
+
+idx_warn <-
+  (score[, 1] > 5 | 
+  score[, 1] < -6.5 | 
+  score[, 2] > 2 | 
+  score[, 2] < -3) &
+  !idx_alarm
+
+idx_normal <- !idx_warn & !idx_alarm
+
+ 
+## Group by time before failure
+## ... and determine which percentage of the engines 
+## ... were beingt classified into each group at each point in time
+#x_full$time <- sensor_data$Time
+x_full$idx_normal <- idx_normal
+x_full$idx_warn <- idx_warn
+x_full$idx_alarm <- idx_alarm
+
+s <- 
+  x_full %>% 
+  group_by(Unit) %>% 
+  mutate(Time_max = max(Time)) %>% 
+  mutate(Time2 = Time - max(Time))
+
+s_prop <- 
+  s %>% 
+  group_by(Time2) %>% 
+  summarise(prop_normal = sum(idx_normal)/n(),
+            prop_warn = sum(idx_warn)/n(),
+            prop_alarm = sum(idx_alarm)/n())
+
+## Plot data
+plot(NULL, 
+     xlim = c(-400, 0),
+     ylim = c(0, 1),
+     xaxs = "i",
+     yaxs = "i",
+     xlab = "Flights prior to failure",
+     ylab = "Fraction of engines")
+lines(s_prop$Time2, s_prop$prop_normal, col = "green")
+lines(s_prop$Time2, s_prop$prop_warn, col = "yellow2")
+lines(s_prop$Time2, s_prop$prop_alarm, col = "red")
 ```
 
 # How much uptime did we gain?
