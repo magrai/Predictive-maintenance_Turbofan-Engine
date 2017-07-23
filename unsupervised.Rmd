@@ -501,6 +501,7 @@ We can see how has the engines appraoch failure the ratio of 'normal', 'warning'
 
 
 ```{r Evaluate all engines}
+library(dplyr)
 ## Load in full dataset
 ## (available in sensor_data)
 

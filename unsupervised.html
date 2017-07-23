@@ -124,7 +124,7 @@ $(document).ready(function () {
 <h1>General information</h1>
 <p>This document contains the transcription of MathWorks MATLAB Webinar “Predictive Maintenance with MATLAB: A Prognostic Case Study” by Adam Filion, which is availabe on <a href="https://de.mathworks.com/videos/predictive-maintenance-with-matlab-a-prognostics-case-study-118661.html" class="uri">https://de.mathworks.com/videos/predictive-maintenance-with-matlab-a-prognostics-case-study-118661.html</a> and <a href="https://www.youtube.com/watch?v=9QUM5jtB0t4" class="uri">https://www.youtube.com/watch?v=9QUM5jtB0t4</a>.</p>
 <p>The case study hass been written R.</p>
-<p>Additional demo files can be found on <a href="https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812208&amp;tab=function" class="uri">https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812208&amp;tab=function</a>.</p>
+<p>Additional demo files can be found on * <a href="https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812208&amp;tab=function" class="uri">https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812208&amp;tab=function</a>. * <a href="https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812210&amp;tab=example" class="uri">https://de.mathworks.com/matlabcentral/fileexchange/63012-demo-files-for-predictive-maintenance?focused=7812210&amp;tab=example</a> * <a href="https://gallery.cortanaintelligence.com/Experiment/Predictive-Maintenance-Step-1-of-3-data-preparation-and-feature-engineering-2" class="uri">https://gallery.cortanaintelligence.com/Experiment/Predictive-Maintenance-Step-1-of-3-data-preparation-and-feature-engineering-2</a> * <a href="https://github.com/hankroark/Turbofan-Engine-Degradation/blob/master/models/Turbofan-Degradation-DataSet-FD001.ipynb" class="uri">https://github.com/hankroark/Turbofan-Engine-Degradation/blob/master/models/Turbofan-Degradation-DataSet-FD001.ipynb</a></p>
 </div>
 <div id="description" class="section level1">
 <h1>Description</h1>
@@ -544,7 +544,8 @@ xtrain_standard &lt;- apply(xtrain, 2, function(x)
 <pre class="r"><code>## Apply principal components analysis to the standardized data
 ## MATLAB's pca uses singular value decomposition (SVD)
 ## ... so R prcomp is appropriate (vs. princomp, which uses spectral decomposition)
-pca &lt;- prcomp(xtrain_standard)
+#pca &lt;- prcomp(xtrain_standard)
+pca &lt;- prcomp(xtrain, center = T, scale = T)
 pca_summary &lt;- summary(pca)
 
 ## prcomp(xtrain_standard)[1] == princomp(xtrain_standard, cor = T)[1]
@@ -585,9 +586,16 @@ plot(pca$x[,1], pca$x[,2],
 <p>As a first try we can simply look at the first and last point recorded for each engine. If engines tend to start in a certain area of the PCA, but move to a different area by the time maintenance is performed, this may give us some indiciatoin of what the trens towards failure looks like.</p>
 <p>In this case we can see that the first and last points form two groups, with the first points centered closer to the origin and the last points centered further away. However there is significant overlap between them, which would not be suprising if many engines are still behaving normally at the time maintenance was performed.</p>
 <pre class="r"><code>## Find first and last point for each engine
-idx_first &lt;- vapply(unique(sensor_data_smooth$Unit), function(x) min(which(sensor_data_smooth$Unit == x)), numeric(1))
-
-idx_last &lt;- vapply(unique(sensor_data_smooth$Unit), function(x) max(which(sensor_data_smooth$Unit == x)), numeric(1))  
+idx_first &lt;- 
+  vapply(unique(sensor_data_smooth$Unit), 
+         function(x) 
+           min(which(sensor_data_smooth$Unit == x)), 
+         numeric(1))
+idx_last &lt;- 
+  vapply(unique(sensor_data_smooth$Unit), 
+         function(x) 
+           max(which(sensor_data_smooth$Unit == x)), 
+         numeric(1))  
 
 ## Compute centroids
 idx_first_cent &lt;- colMeans(pca$x[idx_first, c(1, 2)])
@@ -666,7 +674,7 @@ points(pca$x[r[length(r)], 1], pca$x[r[length(r)], 2],
 <p>Based on the results, we can make an initial guess for the criteria to use for when to issue a ‘warning’ or ‘alarm’ signal. Clearly all engines begin within the main cluster of points. It seems that they may move outside the cluster as servicing becomes more needed. We will generate a ‘warn’ result’ when the engine behavior has left ‘normal’ conditions (in this case ‘normal’ includes about 90% of the data) and should be prioritized for maintenance. An ‘alarm’ means that this engine is very far from ‘normal’ and may need maintenance urgently. Below is one example of an initial guess we may make for where to draw the line between the ‘normal’, ‘warn’ and ‘alarm’ regions.</p>
 <p>The criteria for producing the ‘warn’ and ‘alarm’ signals should be treated as initial guesses that will continue to evolve over time as we perform more rounds of maintenance while gathering more sensor data and maintenance feedback.</p>
 <pre class="r"><code>idx_alarm &lt;- 
-  pca$x[, 1] &gt; 1 | 
+  pca$x[, 1] &gt; 10 | 
   pca$x[, 1] &lt; -7 | 
   pca$x[, 2] &gt; 5 | 
   pca$x[, 2] &lt; -4
@@ -709,10 +717,10 @@ points(pca$x[,1], pca$x[,2],
 <pre class="r"><code>cat(&quot;\n Percent of points captured by \&quot;normal\&quot; + \&quot;warn\&quot; conditions:&quot;,
     sum(!idx_alarm)/nrow(pca$x) * 100)</code></pre>
 <pre><code>## 
-##  Percent of points captured by &quot;normal&quot; + &quot;warn&quot; conditions: 58.66667</code></pre>
+##  Percent of points captured by &quot;normal&quot; + &quot;warn&quot; conditions: 99.51667</code></pre>
 </div>
-<div id="how-can-evaluate-the-criteria" class="section level1">
-<h1>How can evaluate the criteria?</h1>
+<div id="how-can-we-evaluate-the-criteria" class="section level1">
+<h1>How can we evaluate the criteria?</h1>
 <p>Since we have never had an equiment failure, we have no way of knowing what failure looks like in the data. Even though our maintenance staff identified several engines that appeared to be degrading, and those engines appeared to show a distinct trend closer to the maintenance date, we sill don’t know how close to failure they actually were. So then how can we use this information to improve our decision making? This is one of the most difficualt aspects of unsupervised learning.</p>
 <p>There are a number of strategies for how to use these results. Our conservative strategy is to slowly roll back the regularly scheduled maintenance dates. For example, this data came from our first round of maintenance. On the next maintenance round, we might wait to perform maintenance unteil equipment cycle 135 instead of 125, unless a piece of equipment signals an ‘alarm’. If it does, we could priotirize maintenance for that pience of equipment. Otherwise, we will wait longer that the last time to do scheduled maintenance. Along the way we can use the additional sensor data and feedback from maintenance to update our ‘warn’ and ‘alarm’ criteria.</p>
 <p>We can continue to roll back the pace of our regularly scheduled maintenance dates, unteil we are scheduling our maintenance entirely on when we get the ‘warn’ and ‘alarm’ signals from our equipment. If a failure does occur in spite of our effors, SAVE THAT DATA! Real world data leading up to and including failure is both very valuable and very expensive to gather. The better we can understand what failure looks like in the data, the better our results can get.</p>
@@ -720,7 +728,108 @@ points(pca$x[,1], pca$x[,2],
 <div id="evaluate-all-engines-to-failure" class="section level1">
 <h1>Evaluate all engines to failure</h1>
 <p>We actually do have data from all 100 engines running and failure conditions area reached, we were just ignoring what happened after sample 125 so we could explore an unsupervised workflow in a scheduled maintenance situation. Here we load in all the data from all 100 engines to dtermine how this would turned out if we run all our engines to failure while tracking their warning and alarm signals.</p>
-<p>We can see how has the engines appraoch failure the ratio of ‘normal’, ‘warning’ and ‘alarm’ classifications change over time. All engines are ‘normal’ unteil aounrd 125 flights prior to failure, at which point some begin to enter the ‘warning’ region. Around 75 flights prior to failure, some begin to enter the ‘alarm’ region- All engines have left ‘normal’ conditions by 26 flights prior to failure. By 9 flights prio to failure, all 100 engines are triggering alarms, so no engine enters failure without triggering an alarm for a least 9 consecutive flights.</p>
+<p>We can see how has the engines appraoch failure the ratio of ‘normal’, ‘warning’ and ‘alarm’ classifications change over time. All engines are ‘normal’ until around 125 flights prior to failure, at which point some begin to enter the ‘warning’ region. Around 75 flights prior to failure, some begin to enter the ‘alarm’ region- All engines have left ‘normal’ conditions by 26 flights prior to failure. By 9 flights prio to failure, all 100 engines are triggering alarms, so no engine enters failure without triggering an alarm for a least 9 consecutive flights.</p>
+<pre class="r"><code>library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: 'dplyr'</code></pre>
+<pre><code>## The following objects are masked from 'package:stats':
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>## Load in full dataset
+## (available in sensor_data)
+
+## Extract and standardize full sensor data
+x_full &lt;- sensor_data[, variable_names]
+
+x_full_smooth &lt;- c()
+## SMOOTH
+for (u in unique(x_full$Unit)) {
+  ## Prepare data
+  data_temp &lt;- x_full[x_full$Unit == u, variable_names]
+  data_temp &lt;- data_temp[1:125,]
+
+  data_temp_smooth &lt;- data_temp
+  ## Implementation of moving average with filling truncated areas
+  ## First value remains the same
+  ## Second to kth value is truncated, and averaged over values &lt; k
+  for (i in 2:k) {
+    data_temp_smooth[i, 3:ncol(data_temp_smooth)] &lt;- 
+      apply(data_temp[1:i, 3:ncol(data_temp)], 2, mean)
+  }
+
+  for(i in (k+1):nrow(data_temp_smooth)) {
+    data_temp_smooth[i, 3:ncol(data_temp_smooth)] &lt;- 
+      apply(data_temp[(i-k):i, 3:ncol(data_temp)], 2, mean)
+  }
+  
+  ## remove truncated areas
+  #data_temp_smooth &lt;- data_temp_smooth[(k+2):nrow(data_temp_smooth), ]
+  x_full_smooth &lt;- rbind(x_full_smooth, data_temp_smooth)
+}
+
+
+x_full &lt;- x_full_smooth
+
+#x_full[, 3:ncol(x_full)] &lt;- scale(x_full[, 3:ncol(x_full)], center = T, scale = T)
+x_full &lt;- as.data.frame(x_full)
+
+## Project full sensor data onto prncipal coordinates
+#score &lt;- x_full[, 3:ncol(x_full)] %*% pca$rotation
+score &lt;- predict(pca, x_full[, 3:ncol(x_full)])
+
+## Classify each point into &quot;normal&quot;, &quot;warning&quot;, and &quot;alarm&quot;
+idx_alarm &lt;- 
+  score[, 1] &gt; 10 | 
+  score[, 1] &lt; -7 | 
+  score[, 2] &gt; 5 | 
+  score[, 2] &lt; -4
+
+idx_warn &lt;-
+  (score[, 1] &gt; 5 | 
+  score[, 1] &lt; -6.5 | 
+  score[, 2] &gt; 2 | 
+  score[, 2] &lt; -3) &amp;
+  !idx_alarm
+
+idx_normal &lt;- !idx_warn &amp; !idx_alarm
+
+ 
+## Group by time before failure
+## ... and determine which percentage of the engines 
+## ... were beingt classified into each group at each point in time
+#x_full$time &lt;- sensor_data$Time
+x_full$idx_normal &lt;- idx_normal
+x_full$idx_warn &lt;- idx_warn
+x_full$idx_alarm &lt;- idx_alarm
+
+s &lt;- 
+  x_full %&gt;% 
+  group_by(Unit) %&gt;% 
+  mutate(Time_max = max(Time)) %&gt;% 
+  mutate(Time2 = Time - max(Time))
+
+s_prop &lt;- 
+  s %&gt;% 
+  group_by(Time2) %&gt;% 
+  summarise(prop_normal = sum(idx_normal)/n(),
+            prop_warn = sum(idx_warn)/n(),
+            prop_alarm = sum(idx_alarm)/n())
+
+## Plot data
+plot(NULL, 
+     xlim = c(-400, 0),
+     ylim = c(0, 1),
+     xaxs = &quot;i&quot;,
+     yaxs = &quot;i&quot;,
+     xlab = &quot;Flights prior to failure&quot;,
+     ylab = &quot;Fraction of engines&quot;)
+lines(s_prop$Time2, s_prop$prop_normal, col = &quot;green&quot;)
+lines(s_prop$Time2, s_prop$prop_warn, col = &quot;yellow2&quot;)
+lines(s_prop$Time2, s_prop$prop_alarm, col = &quot;red&quot;)</code></pre>
+<p><img src="data:image/png;base64,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" width="672" /></p>
 </div>
 <div id="how-much-uptime-did-we-gain" class="section level1">
 <h1>How much uptime did we gain?</h1>
