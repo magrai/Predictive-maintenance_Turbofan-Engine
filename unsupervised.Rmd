@@ -513,7 +513,6 @@ x_full_smooth <- c()
 for (u in unique(x_full$Unit)) {
   ## Prepare data
   data_temp <- x_full[x_full$Unit == u, variable_names]
-  data_temp <- data_temp[1:125,]
 
   data_temp_smooth <- data_temp
   ## Implementation of moving average with filling truncated areas
@@ -570,7 +569,8 @@ x_full$idx_warn <- idx_warn
 x_full$idx_alarm <- idx_alarm
 
 s <- 
-  x_full %>% 
+  x_full %>%
+  select(Unit, Time, idx_normal, idx_warn, idx_alarm) %>% 
   group_by(Unit) %>% 
   mutate(Time_max = max(Time)) %>% 
   mutate(Time2 = Time - max(Time))
