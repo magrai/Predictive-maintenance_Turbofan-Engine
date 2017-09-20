@@ -289,6 +289,7 @@ xtrain_standard <- apply(xtrain, 2, function(x)
 #xtrain_standard <- scale(xtrain, center = T, scale = T)
 # xtrain_standard <- apply(xtrain, 2, function(x)
 #   (x - mean(x) ) / (sd(x) / length(x) ))
+xtrain_standard <- data.frame(xtrain_standard)
 ```
 
 # Dimensionality reduction - PCA
@@ -300,6 +301,7 @@ Principal component analysis (PCA) is one of the most popular methods of reducin
 ## MATLAB's pca uses singular value decomposition (SVD)
 ## ... so R prcomp is appropriate (vs. princomp, which uses spectral decomposition)
 #pca <- prcomp(xtrain_standard)
+#pca <- prcomp(xtrain_standard, center = F, scale = F)
 pca <- prcomp(xtrain, center = T, scale = T)
 pca_summary <- summary(pca)
 
@@ -495,9 +497,9 @@ We can continue to roll back the pace of our regularly scheduled maintenance dat
 
 # Evaluate all engines to failure
 
-We actually do have data from all 100 engines running and failure conditions area reached, we were just ignoring what happened after sample 125 so we could explore an unsupervised workflow in a scheduled maintenance situation. Here we load in all the data from all 100 engines to dtermine how this would turned out if we run all our engines to failure while tracking their warning and alarm signals.
+We actually do have data from all 100 engines running and failure conditions area reached, we were just ignoring what happened after sample 125 so we could explore an unsupervised workflow in a scheduled maintenance situation. Here we load in all the data from all 100 engines to determine how this would turned out if we run all our engines to failure while tracking their warning and alarm signals.
 
-We can see how has the engines appraoch failure the ratio of 'normal', 'warning' and 'alarm' classifications change over time. All engines are 'normal' until around 125 flights prior to failure, at which point some begin to enter the 'warning' region. Around 75 flights prior to failure, some begin to enter the 'alarm' region- All engines have left 'normal' conditions by 26 flights prior to failure. By 9 flights prio to failure, all 100 engines are triggering alarms, so no engine enters failure without triggering an alarm for a least 9 consecutive flights.
+We can see how has the engines appraoch failure the ratio of 'normal', 'warning' and 'alarm' classifications change over time. All engines are 'normal' until around 125 flights prior to failure, at which point some begin to enter the 'warning' region. Around 75 flights prior to failure, some begin to enter the 'alarm' region. All engines have left 'normal' conditions by 26 flights prior to failure. By 9 flights prio to failure, all 100 engines are triggering alarms, so no engine enters failure without triggering an alarm for a least 9 consecutive flights.
 
 
 ```{r Evaluate all engines}
@@ -505,43 +507,46 @@ library(dplyr)
 ## Load in full dataset
 ## (available in sensor_data)
 
-## Extract and standardize full sensor data
-x_full <- sensor_data[, variable_names]
-
-x_full_smooth <- c()
-## SMOOTH
-for (u in unique(x_full$Unit)) {
-  ## Prepare data
-  data_temp <- x_full[x_full$Unit == u, variable_names]
-
-  data_temp_smooth <- data_temp
-  ## Implementation of moving average with filling truncated areas
-  ## First value remains the same
-  ## Second to kth value is truncated, and averaged over values < k
-  for (i in 2:k) {
-    data_temp_smooth[i, 3:ncol(data_temp_smooth)] <- 
-      apply(data_temp[1:i, 3:ncol(data_temp)], 2, mean)
-  }
-
-  for(i in (k+1):nrow(data_temp_smooth)) {
-    data_temp_smooth[i, 3:ncol(data_temp_smooth)] <- 
-      apply(data_temp[(i-k):i, 3:ncol(data_temp)], 2, mean)
-  }
-  
-  ## remove truncated areas
-  #data_temp_smooth <- data_temp_smooth[(k+2):nrow(data_temp_smooth), ]
-  x_full_smooth <- rbind(x_full_smooth, data_temp_smooth)
-}
-
-
-x_full <- x_full_smooth
+# ## Extract and standardize full sensor data
+x_full <- sensor_data[6:nrow(x_full), variable_names]
+# 
+# x_full_smooth <- c()
+# ## SMOOTH
+# for (u in unique(x_full$Unit)) {
+#   ## Prepare data
+#   data_temp <- x_full[x_full$Unit == u, variable_names]
+# 
+#   data_temp_smooth <- data_temp
+#   ## Implementation of moving average with filling truncated areas
+#   ## First value remains the same
+#   ## Second to kth value is truncated, and averaged over values < k
+#   for (i in 2:k) {
+#     data_temp_smooth[i, 3:ncol(data_temp_smooth)] <-
+#       apply(data_temp[1:i, 3:ncol(data_temp)], 2, mean)
+#   }
+# 
+#   for(i in (k+1):nrow(data_temp_smooth)) {
+#     data_temp_smooth[i, 3:ncol(data_temp_smooth)] <-
+#       apply(data_temp[(i-k):i, 3:ncol(data_temp)], 2, mean)
+#   }
+# 
+#   ## remove truncated areas
+#   #data_temp_smooth <- data_temp_smooth[(k+2):nrow(data_temp_smooth), ]
+#   x_full_smooth <- rbind(x_full_smooth, data_temp_smooth)
+# }
+# 
+# 
+# x_full <- x_full_smooth
 
 #x_full[, 3:ncol(x_full)] <- scale(x_full[, 3:ncol(x_full)], center = T, scale = T)
 x_full <- as.data.frame(x_full)
 
 ## Project full sensor data onto prncipal coordinates
 #score <- x_full[, 3:ncol(x_full)] %*% pca$rotation
-score <- predict(pca, x_full[, 3:ncol(x_full)])
+pca2 <- pca
+#pca2$center = F
+#pca2$scale = F
+score <- predict(pca2, x_full[, 3:ncol(x_full)])
 
 ## Classify each point into "normal", "warning", and "alarm"
 idx_alarm <- 
@@ -599,9 +604,41 @@ lines(s_prop$Time2, s_prop$prop_alarm, col = "red")
 
 If we were to use this method in place of our regularly scheduled maintenance, how many additional cycles of operation would we gain? Here we look at how many cycles we would gain if we either performed maintenence as soon as the warn signal is generated, or waited and performend maintenance once an alarm is triggerd
 
-This data was published by NASA and they curated it to start failry close to failre, so some of these percentages my be high compared to other applications. However the gerenal outcome tends to be the same. usaually there is a consecuative strategy (such as maintenance on warning) that may give us a small percentage boost over scheduled maintenance, a more aggressive strategy (maintenance on alarm) that will give us more, and then a maximum amount we could gain if we did maintenance one sample prior to failure.
+This data was published by NASA and they curated it to start fairly close to failure, so some of these percentages may be high compared to other applications. However the gerenal outcome tends to be the same. usaually there is a consecuative strategy (such as maintenance on warning) that may give us a small percentage boost over scheduled maintenance, a more aggressive strategy (maintenance on alarm) that will give us more, and then a maximum amount we could gain if we did maintenance one sample prior to failure.
 
 ```{r Uptime}
+## Group by unit
+## Find the first time a warning or alarm was triggered for each engine
+s_warn <-
+  vapply(unique(s$Unit), 
+         function(x) min(s$Time[s$Unit == x & s$idx_warn]),
+         #function(x) min(s$Time[s$Unit == x & s$idx_warn & s$Time >= 125]),
+         numeric(1))
+
+s_alarm <-
+  vapply(unique(s$Unit), 
+         function(x) min(s$Time[s$Unit == x & s$idx_alarm]),
+         numeric(1))
+
+## Number of cycles we get with default maintenance
+## 125 cycles before maintenance * 100 engines
+default_cycles <- 125 * 100
+
+## Number of cycles gained by performing maintenance as soon as warning or alarm signals triggered
+
+## Conservative implementation (a little bit over schedules maintenance)
+gained_cyclces_warn <- length(s_warn) - default_cycles
+cat("Gain", gained_cyclces_warn, "% additional uptime by doing maintenance upon first warning signal")
+
+## Aggressive implementation (more risky)
+gained_cyclces_alarm <- sum(s_alarm) - default_cycles
+cat("Gain", gained_cyclces_alarm, "% additional uptime by doing maintenance upon first alarm signal")
+
+## (maximum if we have perfect foresight)
+max_cycles <- length(idx_alarm) - default_cycles
+cat("Gain", max_cycles, "% additional uptime by doing maintenance 1 sample before failure")
+
+cat("Number of engines that did NOT trigger an alarm before failing:", 0)
 
 ```
 
